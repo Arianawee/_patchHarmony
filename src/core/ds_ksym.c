@@ -244,6 +244,44 @@ int droid_lkm_ksym_init(void)
 			      "an ipc sysctl table cannot be withdrawn and stays in /proc/sys");
 	DROID_LKM_THUNK_MAYBE(copy_ipcs, "copy_ipcs",
 			      "a kernel owned ipc namespace cannot be copied, it is refused instead");
+
+	/*
+	 * present in the running kernel but dropped from the export table by
+	 * CONFIG_TRIM_UNUSED_KSYMS. the shims in this module define these
+	 * names, so the link never asks the kernel for them and the load does
+	 * not depend on exports a stock gki image may not carry
+	 */
+	DROID_LKM_THUNK_MAYBE(d_splice_alias, "d_splice_alias",
+			      "the container /proc/<pid>/ns entries are never instantiated");
+	DROID_LKM_THUNK_MAYBE(in_group_p, "in_group_p",
+			      "ipc permission checks never match a supplementary group");
+	DROID_LKM_THUNK_MAYBE(ihold, "ihold",
+			      "removing a named message queue takes no inode reference");
+	DROID_LKM_THUNK_MAYBE(inc_nlink, "inc_nlink",
+			      "a message queue directory never gains its link count");
+	DROID_LKM_THUNK_MAYBE(drop_nlink, "drop_nlink",
+			      "a removed message queue directory keeps its link count");
+	DROID_LKM_THUNK_MAYBE(clear_inode, "clear_inode",
+			      "evicting a message queue inode leaves its state behind");
+	DROID_LKM_THUNK_MAYBE(d_instantiate, "d_instantiate",
+			      "a new message queue dentry is never bound to its inode");
+	DROID_LKM_THUNK_MAYBE(inode_init_once, "inode_init_once",
+			      "message queue inodes are never initialized");
+	DROID_LKM_THUNK_MAYBE(current_umask, "current_umask",
+			      "message queue files ignore the umask of their creator");
+	DROID_LKM_THUNK_MAYBE(kmem_cache_alloc_lru, "kmem_cache_alloc_lru",
+			      "message queue inodes cannot be allocated");
+	DROID_LKM_THUNK_MAYBE(overflowgid_addr, "overflowgid",
+			      "an unmapped ipc gid reports 0 instead of the kernel value");
+
+	/*
+	 * overflowgid is data, not a function: the munged gid helpers read it
+	 * through an inline the module cannot intercept, so the module copy is
+	 * filled from the kernel address resolved above before any code runs
+	 */
+	if (droid_lkm_ks.overflowgid_addr)
+		overflowgid = *droid_lkm_ks.overflowgid_addr;
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
 	/*
 	 * register_sysctl is the one entry point before 6.1. from 6.1 on it is a
