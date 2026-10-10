@@ -16,6 +16,9 @@
 #include <linux/mmap_lock.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/dcache.h>
+#include <linux/cred.h>
+#include <linux/uidgid.h>
 #include <linux/mount.h>
 #include <linux/ipc.h>
 #include <linux/msg.h>
@@ -348,6 +351,91 @@ __nocfi noinline void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 	if (droid_lkm_ks.__audit_mq_getsetattr)
 		droid_lkm_ks.__audit_mq_getsetattr(mqdes, mqstat);
 }
+
+
+/*
+ * helpers the kernel carries but CONFIG_TRIM_UNUSED_KSYMS drops from the
+ * export table. defining the kernel name in this module keeps the link away
+ * from the export, so the loader never asks for a symbol the running kernel
+ * does not advertise, and the call goes through the resolved table like
+ * every other optional helper here. a NULL entry leaves only the feature
+ * that needs it degraded instead of failing the whole load
+ */
+__nocfi noinline struct dentry *d_splice_alias(struct inode *inode,
+					       struct dentry *dentry)
+{
+	if (droid_lkm_ks.d_splice_alias)
+		return droid_lkm_ks.d_splice_alias(inode, dentry);
+	/* a lookup dentry is unhashed, d_add is the no-alias instantiation */
+	d_add(dentry, inode);
+	return NULL;
+}
+
+#ifdef CONFIG_MULTIUSER
+__nocfi noinline int in_group_p(kgid_t grp)
+{
+	if (droid_lkm_ks.in_group_p)
+		return droid_lkm_ks.in_group_p(grp);
+	return 0;
+}
+#endif
+
+__nocfi noinline void ihold(struct inode *inode)
+{
+	if (droid_lkm_ks.ihold)
+		droid_lkm_ks.ihold(inode);
+}
+
+__nocfi noinline void inc_nlink(struct inode *inode)
+{
+	if (droid_lkm_ks.inc_nlink)
+		droid_lkm_ks.inc_nlink(inode);
+}
+
+__nocfi noinline void drop_nlink(struct inode *inode)
+{
+	if (droid_lkm_ks.drop_nlink)
+		droid_lkm_ks.drop_nlink(inode);
+}
+
+__nocfi noinline void clear_inode(struct inode *inode)
+{
+	if (droid_lkm_ks.clear_inode)
+		droid_lkm_ks.clear_inode(inode);
+}
+
+__nocfi noinline void d_instantiate(struct dentry *dentry, struct inode *inode)
+{
+	if (droid_lkm_ks.d_instantiate)
+		droid_lkm_ks.d_instantiate(dentry, inode);
+}
+
+__nocfi noinline void inode_init_once(struct inode *inode)
+{
+	if (droid_lkm_ks.inode_init_once)
+		droid_lkm_ks.inode_init_once(inode);
+}
+
+__nocfi noinline int current_umask(void)
+{
+	return droid_lkm_ks.current_umask ? droid_lkm_ks.current_umask() : 0;
+}
+
+__nocfi noinline void *kmem_cache_alloc_lru(struct kmem_cache *s,
+					    struct list_lru *lru, gfp_t gfpflags)
+{
+	if (droid_lkm_ks.kmem_cache_alloc_lru)
+		return droid_lkm_ks.kmem_cache_alloc_lru(s, lru, gfpflags);
+	return NULL;
+}
+
+/*
+ * data, not a function: from_kgid_munged() reads it through an inline the
+ * module cannot intercept, so the local copy is filled from the kernel
+ * address in droid_lkm_ksym_init() before any module code runs. typeof keeps
+ * the definition in step with whatever type the branch declares
+ */
+typeof(overflowgid) overflowgid;
 
 
 int droid_lkm_overcommit_memory(void)
