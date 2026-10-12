@@ -28,6 +28,13 @@ bool droid_lkm_ipcns_is_ours(struct ipc_namespace *ns);
 bool droid_lkm_ipcns_is_host(struct ipc_namespace *ns);
 struct ipc_namespace *droid_lkm_ipcns_host_ns(void);
 
+/*
+ * true when shared_ipcns=1: the SysV table spans the container and the Android
+ * side, so shmat's ipcperms() owner walk must be skipped to let the X server
+ * (different uid) attach container-created segments.
+ */
+bool droid_lkm_ipcns_shm_relaxed(void);
+
 
 bool droid_lkm_ipcns_busy(void);
 
