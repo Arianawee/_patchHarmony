@@ -1623,7 +1623,16 @@ long droid_lkm_do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	}
 
 	err = -EACCES;
-	if (ipcperms(ns, &shp->shm_perm, acc_mode))
+	/*
+	 * shared_ipcns=1 spans the container and the Android side so the X server
+	 * can resolve the shmid, but the server runs as the Termux app uid while
+	 * the client created the segment as root with mode 0600. the normal owner
+	 * walk then denies the attach and X_ShmAttach comes back BadAccess, which
+	 * is what hung every statically-linked Qt/Chromium client. skip the check
+	 * only when the operator opted into sharing.
+	 */
+	if (!droid_lkm_ipcns_shm_relaxed() &&
+	    ipcperms(ns, &shp->shm_perm, acc_mode))
 		goto out_unlock;
 
 	err = security_shm_shmat(&shp->shm_perm, shmaddr, shmflg);
