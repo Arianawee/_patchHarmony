@@ -278,6 +278,18 @@ struct ipc_namespace *droid_lkm_ipcns_host_ns(void)
 	return droid_lkm_ipcns_host;
 }
 
+/*
+ * with shared_ipcns the SysV table spans the container and the Android side, so
+ * the X server (a different uid, 10147) must be allowed to attach segments the
+ * container created as root with mode 0600. the normal ipcperms() owner/group/
+ * other walk denies that, which surfaces as X_ShmAttach BadAccess. callers use
+ * this to skip that check; it is only true when the operator opted into sharing.
+ */
+bool droid_lkm_ipcns_shm_relaxed(void)
+{
+	return droid_lkm_shared_ipcns;
+}
+
 bool droid_lkm_ipcns_task_is_host(struct task_struct *task)
 {
 	return droid_lkm_ipcns_is_host(droid_lkm_ipcns_task_ns(task));
