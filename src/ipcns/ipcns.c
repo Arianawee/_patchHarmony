@@ -63,6 +63,19 @@ static struct ipc_namespace *droid_lkm_ipcns_orig;
 /* set when the running kernel owns ipc namespaces, see the classification in ds_caps.c */
 static bool droid_lkm_ipcns_kernel_owned;
 
+/*
+ * a container normally gets its own ipc namespace so its SysV tables stay private.
+ * an X server living on the Android side stays in the host namespace, so its shmat
+ * cannot resolve a segment created inside the container and X_ShmAttach comes back
+ * BadAccess. sharing the host table lets MIT-SHM cross that boundary; the cost is
+ * that one container can see another's segments, acceptable for a single-container
+ * setup.
+ */
+static bool droid_lkm_shared_ipcns;
+module_param_named(shared_ipcns, droid_lkm_shared_ipcns, bool, 0444);
+MODULE_PARM_DESC(shared_ipcns,
+	"1 = containers reuse the host ipc namespace table so X11 MIT-SHM works across the boundary; 0 = per-container ipc namespaces (default)");
+
 
 static const struct proc_ns_operations *droid_lkm_ipcns_neutral_ops;
 
@@ -98,6 +111,13 @@ __nocfi noinline struct ipc_namespace *droid_lkm_ipcns_create(void)
 	struct droid_lkm_ipcns_entry *e;
 	struct ipc_namespace *ns;
 	int err;
+
+	if (droid_lkm_shared_ipcns && droid_lkm_ipcns_host) {
+		get_ipc_ns(droid_lkm_ipcns_host);
+		droid_lkm_info("shared_ipcns: reusing host ipcns %p\n",
+			       droid_lkm_ipcns_host);
+		return droid_lkm_ipcns_host;
+	}
 
 #ifdef CONFIG_IPC_NS
 	/*
